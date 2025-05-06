@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Upload } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { incidentApi } from "@/lib/api"
 
 const MAX_FILE_SIZE = 5000000 // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4"]
@@ -66,19 +67,50 @@ export default function ReportIncidentPage() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
+    try {
+      const formData = new FormData();
+      formData.append('date', values.date.toISOString().split('T')[0]);
+      formData.append('time', values.time);
+      formData.append('location', values.location);
+      formData.append('type', values.incidentType);
+      formData.append('description', values.description);
+      if (values.evidence?.[0]) {
+        formData.append('evidence', values.evidence[0]);
+      }
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
+      console.log('Submitting incident report:', {
+        date: values.date.toISOString().split('T')[0],
+        time: values.time,
+        location: values.location,
+        type: values.incidentType,
+        description: values.description,
+        hasEvidence: !!values.evidence?.[0]
+      });
+
+      const response = await incidentApi.report(formData);
+      
+      if (response.caseId) {
+        toast({
+          title: "Incident reported successfully!",
+          description: `Your case ID is: ${response.caseId}. Please save this ID to track your case.`,
+        });
+        // Reset form
+        form.reset();
+      } else {
+        throw new Error('No case ID received from server');
+      }
+    } catch (error: any) {
+      console.error('Error reporting incident:', error);
       toast({
-        title: "Incident reported successfully!",
-        description: "Your incident has been reported. Case ID: INC-" + Math.floor(100000 + Math.random() * 900000),
-      })
-      // Reset form
-      form.reset()
-    }, 2000)
+        title: "Failed to report incident",
+        description: error.message || error.response?.data?.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -104,7 +136,7 @@ export default function ReportIncidentPage() {
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
-                            variant={"outline"}
+                            type="button"
                             className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
                           >
                             {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
@@ -117,7 +149,7 @@ export default function ReportIncidentPage() {
                           mode="single"
                           selected={field.value}
                           onSelect={field.onChange}
-                          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                          disabled={(date: Date) => date > new Date() || date < new Date("1900-01-01")}
                           initialFocus
                         />
                       </PopoverContent>

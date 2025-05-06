@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { userApi } from "@/lib/api"
 
 const formSchema = z.object({
   email: z.string().email({
@@ -31,19 +32,36 @@ export default function LoginPage() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const response = await userApi.login({
+        email: values.email,
+        password: values.password
+      });
+      
+      // Save the token to localStorage
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+      }
+      
       toast({
         title: "Login successful!",
         description: "Welcome back to HerSafety.",
       })
       // Reset form
       form.reset()
-    }, 2000)
+      // Redirect to dashboard or home page
+      window.location.href = "/dashboard"
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.response?.data?.message || "Invalid credentials. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -114,7 +132,7 @@ export default function LoginPage() {
 
         <div className="text-center">
           <Link href="/admin-login">
-            <Button variant="outline" className="w-full">
+            <Button type="button" className="w-full">
               Login as Authority
             </Button>
           </Link>

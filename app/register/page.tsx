@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { userApi } from "@/lib/api"
 
 const formSchema = z
   .object({
@@ -46,19 +47,31 @@ export default function RegisterPage() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const response = await userApi.register({
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        password: values.password
+      });
+      
       toast({
         title: "Account created successfully!",
         description: "You can now login with your credentials.",
       })
-      // Reset form
       form.reset()
-    }, 2000)
+      window.location.href = "/login"
+    } catch (error: any) {
+      toast({
+        title: "Registration failed",
+        description: error.response?.data?.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
